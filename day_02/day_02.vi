@@ -1,12 +1,71 @@
 
-// use #util::{...};
-
 pub fn main(&io: &IO) {
-  let input = io.full_input();
+  let ranges = io.read_line().assume().split(",").map(fn* (range: String) {
+    let (start, end) = range.split_once("-");
+    (N64::parse(start).assume(), N64::parse(end.assume()).assume())
+  });
 
-  let part1 = 0;
+  let part1 = 0[N64];
+  let part2 = 0[N64];
+  for (start, end) in ranges.iter() {
+    let start_len = start.len_base10();
+    let end_len = end.len_base10();
+
+    for rep in 2..(end_len + 1) {
+      let min_len = (start_len + rep - 1) / rep;
+      let min_pow = 10[N64] ** min_len;
+      let min_rep_1 = repeat_1(min_pow, rep);
+      let min = N64::max(min_pow / 10, (start + min_rep_1 - 1) / min_rep_1);
+
+      let max_len = end_len / rep;
+      let max_pow = 10[N64] ** max_len;
+      let max_rep_1 = repeat_1(max_pow, rep);
+      let max = N64::min(max_pow - 1, end / max_rep_1);
+
+      let n = min;
+      let len = min_len;
+      let pow = min_pow;
+      let rep_1 = min_rep_1;
+      while n <= max {
+        if n >= pow {
+          len += 1;
+          pow *= 10;
+          rep_1 = repeat_1(pow, rep);
+        }
+        let id = n * rep_1;
+        if rep == 2 {
+          part1 += id;
+        }
+        for i in 2..(end_len / rep + 1) {
+          if len % i == 0 and n % repeat_1(10[N64] ** (len / i), i) == 0[N64] {
+            break;
+          }
+        } else {
+          part2 += id.dbg();
+        }
+        n += 1;
+      }
+    }
+  }
+
   io.println("Part 1: {part1}");
-
-  let part2 = 0;
   io.println("Part 2: {part2}");
+}
+
+fn repeat_1(pow: N64, rep: N32) -> N64 {
+  let n = 1[N64];
+  for _ in 1..rep {
+    n = n * pow + 1;
+  }
+  n
+}
+
+fn .len_base10(n: N64) -> N32 {
+  let e = 0;
+
+  while n != 0[N64] {
+    n /= 10;
+    e += 1;
+  }
+  e
 }
