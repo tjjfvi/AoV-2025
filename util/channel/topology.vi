@@ -1,0 +1,78 @@
+
+
+use #root::data::Iterator;
+
+pub fn ring[I, T, F*, P, N; Iterator[I, T], fn F(T, P, N), Dual[P, N]](iter: I, f: F) {
+  let &chan = circular();
+  let empty = true;
+  for value in iter {
+    empty = false;
+    let (prev, next);
+    prev = chan;
+    (chan, next) = Dual::pair[P, N];
+    f(value, prev, next);
+  }
+  if empty {
+    // prevent vicious circle
+    unsafe::erase(&chan);
+  }
+}
+
+fn circular[T]() -> &T {
+  let x;
+  &(~x; ~x)
+}
+
+pub type VonNeumann[T] = { n: T, e: T, s: T, w: T };
+pub fn torus_von_neumann[
+  I, J, T, F*, N, S, W, E;
+  Iterator[I, J], Iterator[J, T], fn F(T, { n: N, e: E, s: S, w: W }), Dual[N, S], Dual[W, E];
+](i: I, f: F) {
+  ring(
+    i,
+    fn* (j: J, north: Recv[Stream[N]], south: Send) {
+      ring(
+        j,
+        fn* (t, w, e) {
+          let n = north.recv_stream();
+          let (s_n, s) = Dual::pair[N, S];
+          south.send_stream(s_n);
+          f(t, { n, s, w, e });
+        },
+      )
+      north.close_stream();
+      south.close_stream();
+    },
+  )
+}
+
+pub type Moore[T] = { nw: T, n: T, ne: T, e: T, se: T, s: T, sw: T, w: T };
+pub fn torus_moore[
+  I, J, T, F*, NW, N, NE, E, SE, S, SW, W;
+  Iterator[I, J],
+  Iterator[J, T],
+  fn F(T, { nw: NW, n: N, ne: NE, e: E, se: SE, s: S, sw: SW, w: W }),
+  Dual[NW, SE],
+  Dual[N, S],
+  Dual[SW, NE],
+  Dual[W, E];
+](i: I, f: F) {
+  torus_von_neumann(
+    i,
+    fn* (
+      t,
+      {
+        n: (n_w: Recv[NW], n: N, n_e: Recv[NE]),
+        s: (s_nw: Send[NW], s: S, s_ne: Send[NE]),
+        w: (w_se: NW, w: W, sw: SW),
+        e: (se: SE, e: E, e_sw: NE),
+      },
+    ) {
+      let nw = n_w.recv();
+      let ne = n_e.recv();
+      s_nw.send(w_se);
+      s_ne.send(e_sw);
+      f(t, { nw, n, ne, w, e, sw, s, se });
+    },
+  )
+}

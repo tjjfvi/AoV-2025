@@ -1,4 +1,57 @@
 
-pub fn something_helpful(a: N32, b: N32) -> N32 {
-  a + b
+pub mod channel;
+
+// use #root::{derive::{Enum, Variant}, ops::comparison::Ord};
+
+// impl ord_never: Ord[!] {
+//   fn cmp(&_: &!, &_: &!) -> Ord {
+//     unsafe::eraser
+//   }
+
+//   fn lt(&_: &!, &_: &!) -> Bool {
+//     unsafe::eraser
+//   }
+
+//   fn le(&_: &!, &_: &!) -> Bool {
+//     unsafe::eraser
+//   }
+// }
+
+// impl ord_variant[I, R; Ord[I], Ord[R]]: Ord[Variant[I, R]] {
+//   fn cmp(&a)
+// }
+
+use #root::{derive::Object, ops::{Cast, arithmetic::Add}};
+
+pub fn .sub_total[T; Add[T, T, T], Cast[Nat, T]](&total: &T) -> &T {
+  let sub_total = 0[T];
+  let ref = &sub_total;
+  total += sub_total;
+  ref
+}
+
+pub trait EachField[C, T] {
+  fn .each_field[F*; fn F(T)](self: C, f: F);
+  fn .each_field_ref[F*; fn F(&T)](self: &C, f: F);
+}
+
+pub mod EachField {
+  pub impl nil_object[T]: EachField[{}, T] {
+    fn each_field[F*; fn F(T)]({}, _: F) {}
+    fn each_field_ref[F*; fn F(&T)](&{}, _: F) {}
+  }
+
+  pub impl object[O, T, R; Object[O, T, R], EachField[R, T]]: EachField[O, T] {
+    fn each_field[F*; fn F(T)](o: O, f: F) {
+      let (t, r) = o as (T, R);
+      f(t);
+      r.each_field(f);
+    }
+
+    fn each_field_ref[F*; fn F(&T)](&o: &O, f: F) {
+      let &(t, r) = &o as &(T, R);
+      f(&t);
+      r.each_field_ref(f);
+    }
+  }
 }
