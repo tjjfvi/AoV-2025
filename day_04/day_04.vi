@@ -1,12 +1,104 @@
 
-// use #util::{...};
+use #util::{EachField as _, channel::{Dual, Exchange, Pipe, Stream, topology::{Moore, torus_moore}}};
 
 pub fn main(&io: &IO) {
-  let input = io.full_input();
+  let width = 0;
+  let grid = [];
 
-  let part1 = 0;
-  io.println("Part 1: {part1}");
+  while io.read_line() is Some(line) {
+    width = line.len();
+    grid.push_back(("." ++ line).iter());
+  }
 
-  let part2 = 0;
-  io.println("Part 2: {part2}");
+  grid.push_front(".".repeat(width + 1).iter());
+
+  let phases = Pipe::empty[Stream[(N32, &N32)]];
+
+  torus_moore(
+    grid.iter(),
+    fn* (char, neighbors: Moore[Heartbeat]) {
+      if char == '@' {
+        let phases = phases.tap_recv();
+        loop {
+          let &(len, &removed) = phases.tap_stream();
+          if len == 0 {
+            // global step
+            break;
+          }
+          for _ in 0..len {
+            let surrounding = 0;
+            neighbors.each_field_ref(fn* (&heartbeat: &Heartbeat) {
+              surrounding += heartbeat.pulse() as N32;
+            });
+            let bool = surrounding < 4;
+            if bool {
+              removed += 1;
+              break.loop;
+            }
+          }
+          continue;
+        }
+      }
+      neighbors.each_field(fn* (heartbeat: Heartbeat) {
+        heartbeat.stop();
+      });
+    },
+  );
+
+  let removed = 0;
+  phases.pipe_stream(&(1, &removed));
+
+  io.println("Part 1: {removed}");
+
+  let phase_len = 1;
+  loop {
+    phase_len *= 2;
+    let delta = 0;
+    phases.pipe_stream(&(phase_len, &delta));
+    if delta != 0 {
+      removed += delta;
+      continue;
+    }
+  }
+  phases.pipe_stream(&(0, &0));
+  phases.close_stream();
+
+  io.println("Part 2: {removed}");
+}
+
+struct Heartbeat(Option[Exchange[Stream[Bool]]]);
+
+mod Heartbeat {
+  pub impl dual: Dual[Heartbeat, Heartbeat] {
+    const pair: (Heartbeat, Heartbeat) = do {
+      let (a, b) = Dual::pair[Exchange, Exchange];
+      (Heartbeat(Some(a)), Heartbeat(Some(b)))
+    };
+  }
+
+  pub fn .pulse(&Heartbeat(channel)) -> Bool {
+    match channel {
+      Some(exchange) {
+        let result = exchange.exchange_stream(true);
+        channel = if result {
+          Some(exchange)
+        } else {
+          exchange.close_stream();
+          None()
+        };
+        result
+      }
+      None() {
+        channel = None();
+        false
+      }
+    }
+  }
+
+  pub fn .stop(Heartbeat(channel)) {
+    if channel is Some(exchange) {
+      exchange.exchange_stream(false);
+      exchange.close_stream();
+    }
+  }
 }

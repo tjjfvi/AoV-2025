@@ -1,0 +1,218 @@
+
+
+pub mod topology;
+
+pub trait Dual[A, B] {
+  const pair: (A, B);
+}
+
+pub mod Dual {
+  use #root::derive::Composite;
+
+  #[basic]
+  pub impl symm[A, B; Dual[B, A]]: Dual[A, B] {
+    const pair: (A, B) = do {
+      let (b, a) = Dual::pair[B, A];
+      (a, b)
+    };
+  }
+
+  pub impl tuple_nil: Dual[(), ()] {
+    const pair: ((), ()) = ((), ());
+  }
+
+  pub impl object_nil: Dual[{}, {}] {
+    const pair: ({}, {}) = ({}, {});
+  }
+
+  pub impl composite[
+    A, AI, AR, B, BI, BR;
+    Composite[A, AI, AR], Composite[B, BI, BR], Dual[AI, BI], Dual[AR, BR];
+  ]: Dual[A, B] {
+    const pair: (A, B) = do {
+      let (ai, bi) = Dual::pair[AI, BI];
+      let (ar, br) = Dual::pair[AR, BR];
+      ((ai, ar) as A, (bi, br) as B)
+    };
+  }
+
+  pub impl send_recv[T]: Dual[Send[T], Recv[T]] {
+    const pair: (Send[T], Recv[T]) = Pipe::empty!;
+  }
+
+  pub impl recv_send[T]: Dual[Recv[T], Send[T]];
+
+  pub impl pipe_tap[T]: Dual[Pipe[T], Tap[T]] {
+    const pair: (Pipe[T], Tap[T]) = do {
+      let pipe = Pipe::empty;
+      let tap = pipe.tap_send();
+      (pipe, tap)
+    };
+  }
+
+  pub impl tap_pipe[T]: Dual[Tap[T], Pipe[T]];
+
+  pub impl exchange[T]: Dual[Exchange[T], Exchange[T]] {
+    const pair: (Exchange[T], Exchange[T]) = Exchange::pair;
+  }
+}
+
+pub struct Stream[T]((T, Stream[T]));
+
+pub struct Send[T](~T);
+pub mod Send {
+  pub fn new[T, F; fn F(Recv[T])](f: F) -> Send[T] {
+    let Pipe(send, recv) = Pipe::empty;
+    f(recv);
+    send
+  }
+
+  pub fn .send[T](Send[T](~send), data: T) {
+    send = data;
+  }
+
+  pub fn .send_stream[T](&Send[Stream[T]](~send), data: T) {
+    send = Stream(data, send);
+  }
+
+  pub fn .close_stream[T](Send[Stream[T]](send)) {
+    unsafe::erase(send);
+  }
+
+  pub fn .tap[T](&send: &Send[T]) -> Tap[T] {
+    let Pipe(pipe_send, pipe_recv) = Pipe::empty;
+    let tap = Tap(pipe_recv, send);
+    send = pipe_send;
+    tap
+  }
+}
+
+pub struct Recv[T](T);
+pub mod Recv {
+  pub fn new[T, F; fn F(Send[T])](f: F) -> Recv[T] {
+    let Pipe(send, recv) = Pipe::empty;
+    f(send);
+    recv
+  }
+
+  pub fn .recv[T](Recv[T](recv)) -> T {
+    recv
+  }
+
+  pub fn .recv_stream[T](&Recv[Stream[T]](recv)) -> T {
+    let data;
+    Stream(data, recv) = recv;
+    data
+  }
+
+  pub fn .close_stream[T](Recv[Stream[T]](recv)) {
+    unsafe::erase(recv);
+  }
+
+  pub fn .tap[T](&recv: &Recv[T]) -> Tap[T] {
+    let Pipe(pipe_send, pipe_recv) = Pipe::empty;
+    let tap = Tap(recv, pipe_send);
+    recv = pipe_recv;
+    tap
+  }
+}
+
+pub struct Pipe[T]((Send[T], Recv[T]));
+pub mod Pipe {
+  pub const empty[T]: Pipe[T] = do {
+    let stream;
+    Pipe(Send(~stream), Recv(stream))
+  };
+
+  pub fn new[T, F; fn F(Tap[T])](f: F) -> Pipe[T] {
+    let pipe = Pipe::empty;
+    f(pipe.tap_send());
+    pipe
+  }
+
+  pub fn .pipe[T](Pipe[T](send, recv), &data: &T) {
+    send.send(data);
+    data = recv.recv();
+  }
+
+  pub fn .pipe_stream[T](&Pipe[Stream[T]](send, recv), &data: &T) {
+    send.send_stream(data);
+    data = recv.recv_stream();
+  }
+
+  pub fn .tap_send[T](&Pipe[T](send, _)) -> Tap[T] {
+    send.tap()
+  }
+
+  pub fn .tap_recv[T](&Pipe[T](_, recv)) -> Tap[T] {
+    recv.tap()
+  }
+
+  pub fn .close_stream[T](Pipe[Stream[T]](send, recv)) {
+    send.close_stream();
+    recv.close_stream();
+  }
+}
+
+pub struct Tap[T]((Recv[T], Send[T]));
+pub mod Tap {
+  pub fn new[T, F; fn F(Pipe[T])](f: F) -> Tap[T] {
+    let pipe = Pipe::empty;
+    let tap = pipe.tap_send();
+    f(pipe);
+    tap
+  }
+
+  pub fn .tap[T](Tap[T](recv, send)) -> &T {
+    let data = recv.recv();
+    let ref = &data;
+    send.send(data);
+    ref
+  }
+
+  pub fn .tap_stream[T](&Tap[Stream[T]](recv, send)) -> &T {
+    let data = recv.recv_stream();
+    let ref = &data;
+    send.send_stream(data);
+    ref
+  }
+
+  pub impl fork[T]: Fork[Tap[T]] {
+    fn fork(&tap: &Tap[T]) -> Tap[T] {
+      let Tap(recv_a, send_c) = tap;
+      let Pipe(send_b, recv_b) = Pipe::empty;
+      tap = Tap(recv_b, send_c);
+      Tap(recv_a, send_b)
+    }
+  }
+
+  pub impl drop[T]: Drop[Tap[T]] {
+    fn drop(Tap[T](Recv(recv), Send(~send))) {
+      send = recv;
+    }
+  }
+}
+
+pub struct Exchange[T]((Send[T], Recv[T]));
+pub mod Exchange {
+  pub const pair[T]: (Exchange[T], Exchange[T]) = do {
+    let Pipe(send_a, recv_a) = Pipe::empty;
+    let Pipe(send_b, recv_b) = Pipe::empty;
+    (Exchange(send_a, recv_b), Exchange(send_b, recv_a))
+  };
+
+  pub fn .exchange[T](Exchange[T](send, recv), data: T) -> T {
+    send.send(data);
+    recv.recv()
+  }
+
+  pub fn .exchange_stream[T](&Exchange[Stream[T]](send, recv), data: T) -> T {
+    send.send_stream(data);
+    recv.recv_stream()
+  }
+
+  pub fn .close_stream[T](Exchange[Stream[T]](send, recv)) {
+    send.close_stream();
+    recv.close_stream();
+  }
+}
