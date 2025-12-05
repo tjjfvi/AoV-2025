@@ -1,12 +1,53 @@
 
 // use #util::{...};
 
+const START: N32 = 0;
+const CHECK: N32 = 1;
+const END: N32 = 2;
+
 pub fn main(&io: &IO) {
-  let input = io.full_input();
+  let points = [];
+  while io.read_line() is Some(line) {
+    if line.len() == 0 {
+      break;
+    }
+    assert line.split_once("-") is (start, Some(end)) else {}
+    let start = N64::parse(start).assume();
+    let end = N64::parse(end).assume();
+    points ++= [(start, START)];
+    points ++= [(end, END)];
+  }
+
+  while io.read_line() is Some(num) {
+    let num = N64::parse(num).assume();
+    points ++= [(num, CHECK)];
+  }
+
+  points.sort();
 
   let part1 = 0;
-  io.println("Part 1: {part1}");
+  let part2 = 0[N64];
+  let active_ranges = 0;
+  for (n, kind) in points.iter() {
+    when {
+      kind == START {
+        if active_ranges == 0 {
+          part2 -= n;
+        }
+        active_ranges += 1;
+      }
+      kind == END {
+        active_ranges -= 1;
+        if active_ranges == 0 {
+          part2 += n + 1;
+        }
+      }
+      _ {
+        part1 += (active_ranges != 0) as N32;
+      }
+    }
+  }
 
-  let part2 = 0;
+  io.println("Part 1: {part1}");
   io.println("Part 2: {part2}");
 }
