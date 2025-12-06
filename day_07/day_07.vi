@@ -1,12 +1,47 @@
 
-// use #util::{...};
-
 pub fn main(&io: &IO) {
-  let input = io.full_input();
-
   let part1 = 0;
+
+  let beams = [];
+  let ignore_line = true;
+  while io.read_line() is Some(line) {
+    // Every other line is blank.
+    ignore_line = !ignore_line;
+    if ignore_line {
+      continue;
+    }
+    let new_beams = [];
+    let prev = 0[N64];
+    let ~next = 0[N64];
+    for char in line {
+      let beam = beams.pop_front().or_use(0[N64]);
+      when {
+        char == 'S' {
+          beam = 1[N64];
+        }
+        char == '.' {
+          ~next = 0[N64];
+          beam += prev + ~next;
+          prev = 0[N64];
+        }
+        char == '^' {
+          part1 += (beam != 0[N64]) as N32;
+          prev = beam;
+          ~next = beam;
+          beam = 0[N64];
+        }
+      }
+      new_beams.push_back(beam);
+    }
+    beams = new_beams;
+  }
+
   io.println("Part 1: {part1}");
 
-  let part2 = 0;
+  let part2 = 0[N64];
+  for beam in beams {
+    part2 += beam;
+  }
+
   io.println("Part 2: {part2}");
 }
