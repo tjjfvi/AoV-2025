@@ -1,12 +1,69 @@
 
-// use #util::{...};
-
 pub fn main(&io: &IO) {
-  let input = io.full_input();
+  let p1_accs = [];
+  let p2_nums = [];
 
-  let part1 = 0;
+  let part1 = 0[N64];
+  let part2 = 0[N64];
+
+  let ~last_line = true;
+
+  while io.read_line() is Some(line) {
+    ~last_line = false;
+    if !~last_line {
+      let new_p1_accs = [];
+      let new_p2_nums = [];
+      let p1_num = 0;
+      for char in (line ++ " ")!.iter() {
+        let p2_num = p2_nums.pop_front().or_use(0);
+        if char == ' ' {
+          if p1_num != 0 {
+            let { sum, prod } = p1_accs.pop_front().or_use({ sum: 0[N64], prod: 1[N64] });
+            sum += p1_num;
+            prod *= p1_num;
+            new_p1_accs.push_back({ sum, prod });
+            p1_num = 0;
+          }
+        } else {
+          let digit = char - '0';
+          p1_num = p1_num * 10 + digit;
+          p2_num = p2_num * 10 + digit;
+        }
+        new_p2_nums.push_back(p2_num);
+      }
+      p1_accs = new_p1_accs;
+      p2_nums = new_p2_nums;
+    } else {
+      let sum = true;
+      let value = 0[N64];
+      for char in line!.iter() {
+        when {
+          char == '+' {
+            part1 += p1_accs.pop_front().assume().sum;
+            part2 += value.dbg();
+            sum = true;
+            value = 0[N64];
+          }
+          char == '*' {
+            part1 += p1_accs.pop_front().assume().prod;
+            part2 += value.dbg();
+            sum = false;
+            value = 1[N64];
+          }
+        }
+        let num = p2_nums.pop_front().assume();
+        if sum {
+          value += num;
+        } else {
+          if num != 0 {
+            value *= num;
+          }
+        }
+      }
+      part2 += value;
+    }
+  }
+
   io.println("Part 1: {part1}");
-
-  let part2 = 0;
   io.println("Part 2: {part2}");
 }
