@@ -41,7 +41,7 @@ pub mod EachField {
     fn each_field_ref[F*; fn F(&T)](&{}, _: F) {}
   }
 
-  pub impl object[O, T, R; Object[O, T, R], EachField[R, T]]: EachField[O, T] {
+  pub impl object[O, K, T, R; Object[O, K, T, R], EachField[R, T]]: EachField[O, T] {
     fn each_field[F*; fn F(T)](o: O, f: F) {
       let (t, r) = o as (T, R);
       f(t);

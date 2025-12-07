@@ -26,8 +26,8 @@ pub mod Dual {
   }
 
   pub impl composite[
-    A, AI, AR, B, BI, BR;
-    Composite[A, AI, AR], Composite[B, BI, BR], Dual[AI, BI], Dual[AR, BR];
+    K, A, AI, AR, B, BI, BR;
+    Composite[A, K, AI, AR], Composite[B, K, BI, BR], Dual[AI, BI], Dual[AR, BR];
   ]: Dual[A, B] {
     const pair: (A, B) = do {
       let (ai, bi) = Dual::pair[AI, BI];
