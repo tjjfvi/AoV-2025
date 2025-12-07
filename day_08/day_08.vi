@@ -1,12 +1,126 @@
 
-// use #util::{...};
+use #root::{data::Array, ops::comparison::Ord};
 
 pub fn main(&io: &IO) {
-  let input = io.full_input();
+  let points = [];
+  while io.read_line() is Some(line) {
+    assert line.split_once(",") is (x, Some(rest)) and rest.split_once(",") is (y, Some(z)) else {}
+    assert N32::parse(x) is Some(x) and N32::parse(y) is Some(y) and N32::parse(z) is Some(z) else {}
+    points.push_back((x, y, z));
+  }
 
-  let part1 = 0;
-  io.println("Part 1: {part1}");
+  struct* Edge({ dist: N64, i: N32, j: N32 });
 
-  let part2 = 0;
+  mod Edge {
+    pub impl ord: Ord[Edge] {
+      fn cmp(&a: &Edge, &b: &Edge) -> Ord {
+        a.dist.cmp(&b.dist)
+      }
+      fn lt(&a: &Edge, &b: &Edge) -> Bool {
+        a.dist < b.dist
+      }
+      fn le(&a: &Edge, &b: &Edge) -> Bool {
+        a.dist <= b.dist
+      }
+    }
+  }
+
+  let edges = [];
+  let i = 0;
+  let iter = points.iter();
+  while iter.advance() is Some((a, iter_)) {
+    iter = iter_;
+    let edges_ = [];
+    let j = i + 1;
+    (iter_ as List);
+    for b in iter_ {
+      edges_.push_back(Edge({ dist: dist(a, b), i, j }));
+      j += 1;
+    }
+    i += 1;
+    edges ++= edges_;
+  }
+
+  edges.sort();
+
+  enum* Node {
+    Root(N32),
+    Child(N32),
+  }
+
+  let nodes = Array::from_fn(points.len(), fn* () { Node::Root(1) });
+
+  let fn find(id: N32) {
+    let ~root;
+    while nodes.at(id).assume() is &Node::Child(parent) {
+      id = parent;
+      parent = ~root;
+    }
+    ~root = id;
+    id
+  }
+
+  let fn union(a: N32, b: N32) -> Bool {
+    let a = find(a);
+    let b = find(b);
+    assert a != b else { false }
+    let &a_node = nodes.at(a).assume();
+    let &b_node = nodes.at(b).assume();
+    assert a_node is Node::Root(a_size) and b_node is Node::Root(b_size) else {
+      debug::error_with("unreachable", (~a_node, ~b_node))
+    }
+    let size = a_size + b_size;
+    if a_size < b_size {
+      a_node = Node::Child(b);
+      b_node = Node::Root(size);
+    } else {
+      a_node = Node::Root(size);
+      b_node = Node::Child(a);
+    }
+    true
+  }
+
+  let fn report_part1() {
+    let n0 = 0;
+    let n1 = 0;
+    let n2 = 0;
+    for node in nodes.fork() as List {
+      if node is Node::Root(size) {
+        if size > n0 {
+          swap(&n0, &size);
+        }
+        if size > n1 {
+          swap(&n1, &size);
+        }
+        if size > n2 {
+          swap(&n2, &size);
+        }
+      }
+    }
+
+    io.println("Part 1: {n0} * {n1} * {n2} = {n0 * n1 * n2}");
+  }
+
+  let count = 0;
+  let last = (0, 0);
+  for Edge({ dist: _, i, j }) in edges {
+    if union(i, j) {
+      last = (i, j);
+    }
+    count += 1;
+    if count == 1000 {
+      report_part1();
+    }
+  }
+
+  let (a, b) = last;
+  let part2 = points.get(a).assume().0 * points.get(b).assume().0;
   io.println("Part 2: {part2}");
+}
+
+fn dist((ax: N32, ay: N32, az: N32), (bx: N32, by: N32, bz: N32)) -> N64 {
+  let x = ax as N64 - bx;
+  let y = ay as N64 - by;
+  let z = az as N64 - bz;
+  x * x + y * y + z * z
 }
