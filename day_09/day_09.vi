@@ -1,12 +1,79 @@
 
-// use #util::{...};
-
 pub fn main(&io: &IO) {
-  let input = io.full_input();
+  let corners = [];
 
-  let part1 = 0;
+  while io.read_line() is Some(line) {
+    assert line.split_once(",") is (x, Some(y)) else {}
+    assert N32::parse(x) is Some(x) and N32::parse(y) is Some(y) else {}
+    corners.push_back((x, y));
+  }
+
+  let &(px: N32, py: N32) = circular();
+
+  let x_lines = [];
+  let y_lines = [];
+
+  for (x, y) in corners {
+    let (px, py) = replace(&(px, py), (x, y));
+    if px != x {
+      let (xl, xh) = min_max(x, px);
+      x_lines.push_back((y, xl, xh));
+    } else {
+      let (yl, yh) = min_max(y, py);
+      y_lines.push_back((x, yl, yh));
+    }
+  }
+
+  fn intersects(&lines: &List[(N32, N32, N32)], x0: N32, x1: N32, ya: N32, yc: N32) -> Bool {
+    for &(yb, xa, xc) in &lines {
+      if ya <= yb <= yc and (xa <= x0 <= xc or xa <= x1 <= xc) {
+        break true;
+      }
+    } else {
+      false
+    }
+  }
+
+  let part1 = 0[N64];
+  let part2 = 0[N64];
+  let iter = corners.iter();
+  while iter.advance() is Some((ax, ay), iter_) {
+    iter = iter_;
+    let x_lines = x_lines;
+    let y_lines = y_lines;
+    for (bx, by) in iter {
+      let (ax, bx) = min_max(ax, bx);
+      let (ay, by) = min_max(ay, by);
+      let area = N64::mul_n32_n32(bx - ax + 1, by - ay + 1);
+
+      part1 = part1.max(area);
+
+      ax += 1;
+      ay += 1;
+      bx -= 1;
+      by -= 1;
+
+      if !intersects(&x_lines, ax, bx, ay, by) and !intersects(&y_lines, ay, by, ax, bx) {
+        if area > part2 {
+          part2 = area;
+        }
+      }
+    }
+  }
+
   io.println("Part 1: {part1}");
-
-  let part2 = 0;
   io.println("Part 2: {part2}");
+}
+
+fn circular[T]() -> &T {
+  let x;
+  &(~x; ~x)
+}
+
+fn min_max(a: N32, b: N32) -> (N32, N32) {
+  if a < b {
+    (a, b)
+  } else {
+    (b, a)
+  }
 }
